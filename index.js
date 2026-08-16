@@ -83,6 +83,23 @@ async function claimVanity(code) {
 }
 
 /**
+ * Re-fetches the guild directly from Discord and checks whether
+ * vanity_url_code actually equals what we tried to set. A 200 response
+ * from the PATCH call only means Discord accepted the request — it does
+ * NOT guarantee the code stuck (e.g. feature not unlocked, race lost to
+ * someone else between check and claim). This closes that gap.
+ */
+async function verifyClaim(code) {
+  try {
+    const guild = await rest.get(Routes.guild(GUILD_ID));
+    return guild.vanity_url_code === code;
+  } catch (err) {
+    console.error(`Failed to verify claim for "${code}":`, err.status, err.message);
+    return false;
+  }
+}
+
+/**
  * DMs the configured user when a vanity claim succeeds.
  * Requires the bot to share a server with that user (it does, via GUILD_ID).
  * Fails silently into a console warning if DMs are closed or the ID is wrong.
@@ -116,20 +133,42 @@ async function pollOnce() {
     console.log(`[${new Date().toISOString()}] "${code}" looks free — attempting claim...`);
     const success = await claimVanity(code);
 
-    if (success) {
+    if (!success) {
+      console.log(`Claim attempt for "${code}" failed, will keep polling.`);
+      continue;
+    }
+
+    const verified = await verifyClaim(code);
+
+    if (verified) {
       claimed = true;
-      console.log(`✅ Claimed vanity URL: discord.gg/${code}`);
+      console.log(`✅ Claimed and verified vanity URL: discord.gg/${code}`);
       await notifyClaim(code);
       clearInterval(pollTimer);
       return; // stop checking further codes once claimed
     } else {
-      console.log(`Claim attempt for "${code}" failed, will keep polling.`);
+      console.log(`⚠️  PATCH for "${code}" returned OK, but verification shows it did NOT stick. Still polling.`);
     }
   }
 }
 
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log(`Logged in as ${client.user.tag}`);
+
+  try {
+    const guild = await rest.get(Routes.guild(GUILD_ID));
+    const hasFeature = Array.isArray(guild.features) && guild.features.includes('VANITY_URL');
+    console.log(`Guild "${guild.name}" VANITY_URL feature: ${hasFeature ? 'ENABLED ✅' : 'NOT ENABLED ❌'}`);
+    if (!hasFeature) {
+      console.warn('⚠️  This server does not currently have the vanity URL feature unlocked. Claims will fail until it does (Boost Level 3, or partnered).');
+    }
+    if (guild.vanity_url_code) {
+      console.log(`Current vanity code on this server: "${guild.vanity_url_code}"`);
+    }
+  } catch (err) {
+    console.error('Could not fetch guild info at startup:', err.status, err.message);
+  }
+
   console.log(`Polling for vanity codes [${TARGET_CODES.join(', ')}] every ${POLL_INTERVAL_MS}ms...`);
 
   pollOnce(); // check immediately on startup

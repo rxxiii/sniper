@@ -64,13 +64,21 @@ claim it right away and stops polling once successful.
 
 ## Notes / limitations
 
+- **Startup diagnostic:** on login, the bot fetches your guild and logs
+  whether `VANITY_URL` is actually in its feature list. If it's not,
+  claims will fail no matter how fast the bot is — fix that first
+  before troubleshooting anything else.
+- **Verified claims:** a successful PATCH response from Discord only
+  means the request was accepted, not that the code actually stuck
+  (e.g. someone else won a timing race, or the feature isn't truly
+  enabled). The bot now re-fetches the guild after every claim
+  attempt and confirms `vanity_url_code` matches before declaring
+  success, stopping, or sending your DM. If verification fails, it
+  logs a warning and keeps polling.
 - Checking availability relies on `GET /invites/{code}` returning
   404 for unused codes. This is a reasonable proxy but not a
   Discord-guaranteed "vanity availability" endpoint (Discord doesn't
   publish one).
-- Claiming still requires your server to actually have the vanity
-  URL feature unlocked — the API call will fail otherwise regardless
-  of whether the code is free.
 - Being fast still isn't a guarantee — if many parties want the same
   popular code, someone with a lower-latency setup or better luck on
   timing may still win it.
