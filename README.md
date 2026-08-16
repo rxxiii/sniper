@@ -28,6 +28,7 @@ BOT_TOKEN=your_bot_token_here
 GUILD_ID=your_server_id_here
 TARGET_CODES=first-choice,second-choice,third-choice
 POLL_INTERVAL_MS=5000
+NOTIFY_USER_ID=your_discord_user_id_here
 ```
 
 - `GUILD_ID`: right-click your server icon in Discord (Developer Mode
@@ -37,6 +38,15 @@ POLL_INTERVAL_MS=5000
   first one it finds free — e.g. `myserver,myserver2,myservr` tries
   `myserver` first, falling back to the others only if it's taken.
   A single code still works fine: `TARGET_CODES=myserver`.
+- `POLL_INTERVAL_MS`: how often to check, in milliseconds. `5000`
+  (5 seconds) is a reasonable default. Going much lower increases
+  the risk of Discord rate-limiting the bot; go lower only if you
+  have a specific reason to poll more aggressively.
+- `NOTIFY_USER_ID` (optional): your Discord user ID. If set, the bot
+  DMs you when it successfully claims a vanity code. Right-click
+  your own name/avatar in Discord (Developer Mode enabled) → Copy
+  User ID. Leave blank to skip DMs — claims are always logged to
+  the console either way.
 - `POLL_INTERVAL_MS`: how often to check, in milliseconds. Don't set
   this too aggressively — Discord rate-limits the API, and the bot
   will back off automatically on 429s via discord.js's built-in

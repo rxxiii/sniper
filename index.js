@@ -19,6 +19,7 @@
  *   GUILD_ID=your_server_id_here
  *   TARGET_CODES=first-choice,second-choice,third-choice
  *   POLL_INTERVAL_MS=5000
+ *   NOTIFY_USER_ID=your_discord_user_id_here   (optional — DMs you on success)
  */
 
 require('dotenv').config();
@@ -27,6 +28,7 @@ const { Client, GatewayIntentBits, REST, Routes } = require('discord.js');
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '5000', 10);
+const NOTIFY_USER_ID = process.env.NOTIFY_USER_ID || null;
 
 // Supports either TARGET_CODES=a,b,c (preferred) or legacy single TARGET_CODE
 const rawCodes = process.env.TARGET_CODES || process.env.TARGET_CODE || '';
@@ -81,6 +83,22 @@ async function claimVanity(code) {
 }
 
 /**
+ * DMs the configured user when a vanity claim succeeds.
+ * Requires the bot to share a server with that user (it does, via GUILD_ID).
+ * Fails silently into a console warning if DMs are closed or the ID is wrong.
+ */
+async function notifyClaim(code) {
+  if (!NOTIFY_USER_ID) return;
+
+  try {
+    const user = await client.users.fetch(NOTIFY_USER_ID);
+    await user.send(`✅ Claimed vanity URL: discord.gg/${code}`);
+  } catch (err) {
+    console.warn(`Could not DM user ${NOTIFY_USER_ID}:`, err.message);
+  }
+}
+
+/**
  * Walks the target list in priority order. Stops and claims the first
  * one found available. Earlier entries in TARGET_CODES are preferred.
  */
@@ -101,6 +119,7 @@ async function pollOnce() {
     if (success) {
       claimed = true;
       console.log(`✅ Claimed vanity URL: discord.gg/${code}`);
+      await notifyClaim(code);
       clearInterval(pollTimer);
       return; // stop checking further codes once claimed
     } else {
