@@ -26,14 +26,17 @@ Edit `.env`:
 ```
 BOT_TOKEN=your_bot_token_here
 GUILD_ID=your_server_id_here
-TARGET_CODE=the-vanity-code-you-want
+TARGET_CODES=first-choice,second-choice,third-choice
 POLL_INTERVAL_MS=5000
 ```
 
 - `GUILD_ID`: right-click your server icon in Discord (Developer Mode
   enabled) → Copy Server ID.
-- `TARGET_CODE`: the exact code you want, e.g. `myserver` for
-  `discord.gg/myserver`.
+- `TARGET_CODES`: a comma-separated list of codes, in priority order.
+  On each poll, the bot checks them left to right and claims the
+  first one it finds free — e.g. `myserver,myserver2,myservr` tries
+  `myserver` first, falling back to the others only if it's taken.
+  A single code still works fine: `TARGET_CODES=myserver`.
 - `POLL_INTERVAL_MS`: how often to check, in milliseconds. Don't set
   this too aggressively — Discord rate-limits the API, and the bot
   will back off automatically on 429s via discord.js's built-in

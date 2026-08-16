@@ -17,7 +17,7 @@
  * .env file:
  *   BOT_TOKEN=your_bot_token_here
  *   GUILD_ID=your_server_id_here
- *   TARGET_CODE=the-vanity-code-you-want
+ *   TARGET_CODES=first-choice,second-choice,third-choice
  *   POLL_INTERVAL_MS=5000
  */
 
@@ -26,11 +26,17 @@ const { Client, GatewayIntentBits, REST, Routes } = require('discord.js');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
-const TARGET_CODE = process.env.TARGET_CODE;
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '5000', 10);
 
-if (!BOT_TOKEN || !GUILD_ID || !TARGET_CODE) {
-  console.error('Missing required .env values: BOT_TOKEN, GUILD_ID, TARGET_CODE');
+// Supports either TARGET_CODES=a,b,c (preferred) or legacy single TARGET_CODE
+const rawCodes = process.env.TARGET_CODES || process.env.TARGET_CODE || '';
+const TARGET_CODES = rawCodes
+  .split(',')
+  .map((c) => c.trim())
+  .filter(Boolean);
+
+if (!BOT_TOKEN || !GUILD_ID || TARGET_CODES.length === 0) {
+  console.error('Missing required .env values: BOT_TOKEN, GUILD_ID, TARGET_CODES');
   process.exit(1);
 }
 
@@ -74,30 +80,38 @@ async function claimVanity(code) {
   }
 }
 
+/**
+ * Walks the target list in priority order. Stops and claims the first
+ * one found available. Earlier entries in TARGET_CODES are preferred.
+ */
 async function pollOnce() {
   if (claimed) return;
 
-  const available = await isCodeAvailable(TARGET_CODE);
-  if (!available) {
-    console.log(`[${new Date().toISOString()}] "${TARGET_CODE}" still taken.`);
-    return;
-  }
+  for (const code of TARGET_CODES) {
+    const available = await isCodeAvailable(code);
 
-  console.log(`[${new Date().toISOString()}] "${TARGET_CODE}" looks free — attempting claim...`);
-  const success = await claimVanity(TARGET_CODE);
+    if (!available) {
+      console.log(`[${new Date().toISOString()}] "${code}" still taken.`);
+      continue;
+    }
 
-  if (success) {
-    claimed = true;
-    console.log(`✅ Claimed vanity URL: discord.gg/${TARGET_CODE}`);
-    clearInterval(pollTimer);
-  } else {
-    console.log('Claim attempt failed, will keep polling.');
+    console.log(`[${new Date().toISOString()}] "${code}" looks free — attempting claim...`);
+    const success = await claimVanity(code);
+
+    if (success) {
+      claimed = true;
+      console.log(`✅ Claimed vanity URL: discord.gg/${code}`);
+      clearInterval(pollTimer);
+      return; // stop checking further codes once claimed
+    } else {
+      console.log(`Claim attempt for "${code}" failed, will keep polling.`);
+    }
   }
 }
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
-  console.log(`Polling for vanity code "${TARGET_CODE}" every ${POLL_INTERVAL_MS}ms...`);
+  console.log(`Polling for vanity codes [${TARGET_CODES.join(', ')}] every ${POLL_INTERVAL_MS}ms...`);
 
   pollOnce(); // check immediately on startup
   pollTimer = setInterval(pollOnce, POLL_INTERVAL_MS);
