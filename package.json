@@ -1,0 +1,13 @@
+{
+  "name": "vanity-sniper-bot",
+  "version": "1.0.0",
+  "description": "Legitimate Discord bot that polls and claims a vanity URL using the official bot API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5"
+  }
+}
