@@ -133,9 +133,12 @@ async function isCodeAvailable(code) {
  */
 async function claimVanity(code) {
   try {
-    await rest.patch(Routes.guild(GUILD_ID), {
+    const response = await rest.patch(Routes.guild(GUILD_ID), {
       body: { vanity_url_code: code },
     });
+    // Log exactly what Discord handed back for this field so we can see
+    // whether it was actually accepted, or silently ignored.
+    log(`Raw PATCH response vanity_url_code: "${response.vanity_url_code}"`);
     return { ok: true };
   } catch (err) {
     return { ok: false, status: err.status, message: err.message };
